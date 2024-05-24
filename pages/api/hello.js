@@ -1,83 +1,87 @@
-
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import database from '../../services/firebase';
 
 export default async function handler(req, res) {
-
   if (req.method === "GET") {
     const id = req.query.id;
-    console.log("", id);
 
     if (id === undefined) {
-      const usuarios = await db.all("SELECT * from Usuarios");
-
-      res.status(200).json(usuarios);
+      try {
+        const usuariosSnapshot = await getDocs(collection(database, "Usuarios"));
+        const usuarios = usuariosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        res.status(200).json(usuarios);
+      } catch (error) {
+        console.error("Erro ao buscar usuários:", error);
+        res.status(500).json({ message: "Erro ao buscar usuários" });
+      }
     } else {
-      const usuario = await db.get("SELECT * from Usuarios WHERE id = ?", [id]);
-      res.status(200).json(usuario);
+      try {
+        const usuarioDoc = await getDoc(doc(database, "Usuarios", id));
+        if (usuarioDoc.exists()) {
+          const usuario = { id: usuarioDoc.id, ...usuarioDoc.data() };
+          res.status(200).json(usuario);
+        } else {
+          res.status(404).json({});
+        }
+      } catch (error) {
+        console.error("Erro ao buscar usuário por ID:", error);
+        res.status(500).json({ message: "Erro ao buscar usuário por ID" });
+      }
     }
   }
 
   if (req.method === "POST") {
     const new_usuario = req.body;
 
-    console.log("====================================");
-    console.log(new_usuario.nome, new_usuario.email);
-    console.log("====================================");
-
-    if (new_usuario.nome === undefined || new_usuario.nome === "") {
-      res.status(402).json({message: "nome é obrigatorio!"});
+    if (!new_usuario.nome || !new_usuario.email) {
+      res.status(402).json({ message: "nome e email são obrigatórios!" });
+      return;
     }
 
-    if (new_usuario.email === undefined || new_usuario.email === "") {
-      res.status(402).json({message: "email é obrigatorio!"});
+    try {
+      await addDoc(collection(database, "Usuarios"), new_usuario);
+      res.status(201).json({});
+    } catch (error) {
+      console.error("Erro ao adicionar usuário:", error);
+      res.status(500).json({ message: "Erro ao adicionar usuário" });
     }
-
-    const createUser = await db.prepare(
-      "INSERT INTO Usuarios (nome, email) VALUES (?, ?);"
-    );
-
-    const runCreat = await createUser.run(new_usuario.nome, new_usuario.email);
-
-    res.status(201).json({});
   }
 
   if (req.method === "PUT") {
     const update_usuario = req.body;
 
-    const valid_usuario = await db.get("SELECT * from Usuarios WHERE id = ?", [
-      update_usuario.id,
-    ]);
-    if (valid_usuario === undefined) {
-      res.status(404).json({});
+    try {
+      const usuarioRef = doc(database, "Usuarios", update_usuario.id);
+      const usuarioDoc = await getDoc(usuarioRef);
+
+      if (usuarioDoc.exists()) {
+        await updateDoc(usuarioRef, update_usuario);
+        res.status(200).json({});
+      } else {
+        res.status(404).json({});
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar usuário:", error);
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
     }
-
-    const updateUsuario = await db.prepare(
-      "UPDATE Usuarios SET nome = ?, email = ? WHERE id = ?"
-    );
-    const runCreat = await updateUsuario.run(
-      update_usuario.nome,
-      update_usuario.email,
-      update_usuario.id
-    );
-
-    res.status(200).json({});
   }
 
   if (req.method === "DELETE") {
     const ID = req.body.id;
 
-    const valid_usuario = await db.get("SELECT * from Usuarios WHERE id = ?", [
-      ID,
-    ]);
-    if (valid_usuario === undefined) {
-      res.status(404).json({});
+    try {
+      const usuarioRef = doc(database, "Usuarios", ID);
+      const usuarioDoc = await getDoc(usuarioRef);
+
+      if (usuarioDoc.exists()) {
+        await deleteDoc(usuarioRef);
+        res.status(201).json({});
+      } else {
+        res.status(404).json({});
+      }
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ message: "Erro ao excluir usuário" });
     }
-
-    const deleteUsuario = await db.prepare(
-      "DELETE FROM Usuarios WHERE id = ?;"
-    );
-
-    const delete_Usuario = await deleteUsuario.run(ID);
-
-    res.status(201).json({});
   }
 }
