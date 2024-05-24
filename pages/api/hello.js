@@ -1,5 +1,5 @@
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import database from '../../services/firebase';
+import database from '../../api/hello';
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
